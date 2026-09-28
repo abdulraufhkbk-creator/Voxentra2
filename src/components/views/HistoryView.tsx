@@ -28,6 +28,7 @@ interface HistoryViewProps {
   onSelectAnalysis: (id: string) => void;
   onDeleteAnalysis: (id: string) => void;
   onClearAll: () => void;
+  onNavigateToAnalyze?: () => void;
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = ({

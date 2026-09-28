@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { AnalysisResult, AnalysisScenario, RiskLevel } from './types/analysis';
-import { SCENARIO_1_DEEPFAKE, SEEDED_SCENARIOS } from './data/seedScenarios';
+import { AnalysisResult, RiskLevel } from './types/analysis';
 import { Sidebar, NavItemKey } from './components/layout/Sidebar';
 import { Navbar } from './components/layout/Navbar';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { CommandPalette } from './components/common/CommandPalette';
+import { KeyboardShortcutsModal } from './components/common/KeyboardShortcutsModal';
 import { HomeView } from './components/views/HomeView';
+import { DataSourcesView } from './components/views/DataSourcesView';
 import { AnalyzeView } from './components/views/AnalyzeView';
 import { CreatorLensView } from './components/views/CreatorLensView';
 import { AudienceView } from './components/views/AudienceView';
@@ -15,11 +18,10 @@ import { CrossPlatformView } from './components/views/CrossPlatformView';
 import { ReportsView } from './components/views/ReportsView';
 import { HistoryView } from './components/views/HistoryView';
 import { PrivacySettingsView } from './components/views/PrivacySettingsView';
-import { CompanionSimulatorView } from './components/views/CompanionSimulatorView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavItemKey>('home');
-  const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult>(SCENARIO_1_DEEPFAKE);
+  const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [historyList, setHistoryList] = useState<Array<{
     id: string;
     title: string;
@@ -30,9 +32,61 @@ export default function App() {
     views: number;
   }>>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchHistory();
+  }, []);
+
+  // Keyboard shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in input or textarea or editable element
+      const activeElement = document.activeElement;
+      const isInput =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        (activeElement as HTMLElement)?.isContentEditable;
+
+      // Cmd+K or Ctrl+K -> Command Palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Quick navigation shortcuts with Cmd/Ctrl + Shift
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'a') {
+          e.preventDefault();
+          setActiveTab('analyze');
+        } else if (key === 'p') {
+          e.preventDefault();
+          setActiveTab('reports');
+        } else if (key === 'r') {
+          e.preventDefault();
+          setActiveTab('risk');
+        } else if (key === 'd') {
+          e.preventDefault();
+          setActiveTab('data-sources');
+        } else if (key === 'h') {
+          e.preventDefault();
+          setActiveTab('home');
+        }
+        return;
+      }
+
+      // Single key '?' shortcut to open shortcuts modal when not in input
+      if (!isInput && e.key === '?') {
+        e.preventDefault();
+        setIsShortcutsModalOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const fetchHistory = async () => {
@@ -41,27 +95,13 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setHistoryList(data);
+        if (data.length > 0 && !currentAnalysis) {
+          handleSelectHistoryItem(data[0].id);
+        }
       }
     } catch (e) {
       console.warn('Failed to load history list:', e);
-      // Fallback to seeded scenarios
-      setHistoryList(
-        SEEDED_SCENARIOS.map((s) => ({
-          id: s.data.id,
-          title: s.data.title,
-          platform: s.platform,
-          risk_level: s.risk_badge,
-          timestamp: s.data.timestamp,
-          summary: s.data.answers.what_is_happening,
-          views: s.data.content.engagement.views,
-        }))
-      );
     }
-  };
-
-  const handleSelectScenario = (scenario: AnalysisScenario) => {
-    setCurrentAnalysis(scenario.data);
-    setActiveTab('home');
   };
 
   const handleSelectHistoryItem = async (id: string) => {
@@ -73,11 +113,7 @@ export default function App() {
         setActiveTab('home');
       }
     } catch (e) {
-      const fallback = SEEDED_SCENARIOS.find((s) => s.data.id === id);
-      if (fallback) {
-        setCurrentAnalysis(fallback.data);
-        setActiveTab('home');
-      }
+      console.warn('Error loading analysis item:', e);
     }
   };
 
@@ -85,8 +121,14 @@ export default function App() {
     try {
       await fetch(`/api/history/${id}`, { method: 'DELETE' });
       fetchHistory();
+      if (currentAnalysis?.id === id) {
+        setCurrentAnalysis(null);
+      }
     } catch (e) {
       setHistoryList((prev) => prev.filter((item) => item.id !== id));
+      if (currentAnalysis?.id === id) {
+        setCurrentAnalysis(null);
+      }
     }
   };
 
@@ -94,8 +136,10 @@ export default function App() {
     try {
       await fetch('/api/history', { method: 'DELETE' });
       setHistoryList([]);
+      setCurrentAnalysis(null);
     } catch (e) {
       setHistoryList([]);
+      setCurrentAnalysis(null);
     }
   };
 
@@ -121,81 +165,119 @@ export default function App() {
           currentAnalysis={currentAnalysis}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           onNavigate={setActiveTab}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenShortcutsModal={() => setIsShortcutsModalOpen(true)}
         />
 
         <main className="flex-1 overflow-y-auto">
-          {activeTab === 'home' && (
-            <HomeView
-              currentAnalysis={currentAnalysis}
-              historyList={historyList}
-              onSelectScenario={handleSelectScenario}
-              onSelectHistoryItem={handleSelectHistoryItem}
-              onNavigate={setActiveTab}
-            />
-          )}
+          <ErrorBoundary key={activeTab} onReset={() => setActiveTab('home')}>
+            {activeTab === 'home' && (
+              <HomeView
+                currentAnalysis={currentAnalysis}
+                historyList={historyList}
+                onSelectHistoryItem={handleSelectHistoryItem}
+                onNavigate={setActiveTab}
+              />
+            )}
 
-          {activeTab === 'analyze' && (
-            <AnalyzeView
-              onAnalysisComplete={handleAnalysisCompleted}
-              onSelectScenario={handleSelectScenario}
-            />
-          )}
+            {activeTab === 'data-sources' && (
+              <DataSourcesView
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'creator-lens' && (
-            <CreatorLensView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'analyze' && (
+              <AnalyzeView
+                onAnalysisComplete={handleAnalysisCompleted}
+              />
+            )}
 
-          {activeTab === 'audience' && (
-            <AudienceView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'creator-lens' && (
+              <CreatorLensView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'trends' && (
-            <TrendsView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'audience' && (
+              <AudienceView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'network' && (
-            <NetworkView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'trends' && (
+              <TrendsView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'risk' && (
-            <ContentRiskView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'network' && (
+              <NetworkView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'timeline' && (
-            <TimelineView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'risk' && (
+              <ContentRiskView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'cross-platform' && (
-            <CrossPlatformView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'timeline' && (
+              <TimelineView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'reports' && (
-            <ReportsView analysis={currentAnalysis} />
-          )}
+            {activeTab === 'cross-platform' && (
+              <CrossPlatformView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'history' && (
-            <HistoryView
-              historyList={historyList}
-              onSelectAnalysis={handleSelectHistoryItem}
-              onDeleteAnalysis={handleDeleteHistoryItem}
-              onClearAll={handleClearAllHistory}
-            />
-          )}
+            {activeTab === 'reports' && (
+              <ReportsView
+                analysis={currentAnalysis}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'privacy' && (
-            <PrivacySettingsView />
-          )}
+            {activeTab === 'history' && (
+              <HistoryView
+                historyList={historyList}
+                onSelectAnalysis={handleSelectHistoryItem}
+                onDeleteAnalysis={handleDeleteHistoryItem}
+                onClearAll={handleClearAllHistory}
+                onNavigateToAnalyze={() => setActiveTab('analyze')}
+              />
+            )}
 
-          {activeTab === 'companion' && (
-            <CompanionSimulatorView
-              onLoadSimulatedAnalysis={(result) => {
-                setCurrentAnalysis(result);
-                setActiveTab('risk');
-              }}
-            />
-          )}
+            {activeTab === 'privacy' && (
+              <PrivacySettingsView />
+            )}
+          </ErrorBoundary>
         </main>
       </div>
+
+      {/* Global Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={setActiveTab}
+        onOpenShortcutsHelp={() => setIsShortcutsModalOpen(true)}
+      />
+
+      {/* Global Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+      />
     </div>
   );
 }

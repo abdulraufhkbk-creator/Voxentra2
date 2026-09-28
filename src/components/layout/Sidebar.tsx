@@ -13,10 +13,13 @@ import {
   ShieldCheck,
   Chrome,
   Sparkles,
+  Radio,
+  Server,
 } from 'lucide-react';
 
 export type NavItemKey =
   | 'home'
+  | 'data-sources'
   | 'analyze'
   | 'creator-lens'
   | 'audience'
@@ -45,8 +48,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems: Array<{ key: NavItemKey; label: string; icon: React.FC<{ size?: number; className?: string }>; badge?: string }> = [
     { key: 'home', label: 'Home', icon: Compass },
+    { key: 'data-sources', label: 'Data Sources & APIs', icon: Server, badge: 'LIVE' },
     { key: 'analyze', label: 'Analyze Content', icon: Search },
-    { key: 'creator-lens', label: 'Creator Lens', icon: Sparkles, badge: 'NEW' },
+    { key: 'creator-lens', label: 'Creator Lens', icon: Sparkles },
     { key: 'audience', label: 'Audience Intelligence', icon: Users },
     { key: 'trends', label: 'Trends & Narratives', icon: TrendingUp },
     { key: 'network', label: 'Network & Influence', icon: Share2 },
@@ -56,7 +60,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { key: 'reports', label: 'Reports', icon: FileText },
     { key: 'history', label: 'Analysis History', icon: History },
     { key: 'privacy', label: 'Privacy & Settings', icon: ShieldCheck },
-    { key: 'companion', label: 'Browser Companion', icon: Chrome, badge: 'v1.0' },
   ];
 
   const handleSelect = (key: NavItemKey) => {

@@ -10,11 +10,24 @@ import {
 } from 'lucide-react';
 import { PlatformIcon } from '../common/PlatformIcon';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface NetworkViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const NetworkView: React.FC<NetworkViewProps> = ({ analysis }) => {
+export const NetworkView: React.FC<NetworkViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Network Graph Available"
+        description="Ingest real content or run an account audit to view network diffusion nodes and amplification reach."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { network } = analysis;
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(
     network.nodes[0] || null
@@ -57,16 +70,21 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ analysis }) => {
   const radius = 165;
 
   const nodePositions = new Map<string, { x: number; y: number }>();
-  network.nodes.forEach((node, idx) => {
+  const nonSeedNodes = network.nodes.filter((n) => !n.is_seed);
+  const totalNonSeed = Math.max(1, nonSeedNodes.length);
+
+  let nonSeedIdx = 0;
+  network.nodes.forEach((node) => {
     if (node.is_seed) {
       nodePositions.set(node.id, { x: centerX, y: centerY });
     } else {
-      const angle = ((idx - 1) / (totalNodes - 1)) * 2 * Math.PI - Math.PI / 2;
-      const dist = radius + (idx % 2 === 0 ? 25 : -20);
+      const angle = (nonSeedIdx / totalNonSeed) * 2 * Math.PI - Math.PI / 2;
+      const dist = radius + (nonSeedIdx % 2 === 0 ? 25 : -20);
       nodePositions.set(node.id, {
         x: centerX + Math.cos(angle) * dist,
         y: centerY + Math.sin(angle) * dist,
       });
+      nonSeedIdx++;
     }
   });
 
@@ -167,7 +185,6 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ analysis }) => {
             <svg
               viewBox="0 0 720 480"
               className="w-full h-full max-h-[460px] select-none rounded-2xl bg-[#F8F5EF]/90 border border-[#D8CFC2]/50 shadow-inner"
-              style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }}
             >
               {/* Subtle warm dot pattern */}
               <defs>
@@ -188,90 +205,96 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ analysis }) => {
               </defs>
               <rect width="720" height="480" fill="url(#warmgrid)" />
 
-              {/* Render Active Edges */}
-              {visibleEdges.map((edge) => {
-                const src = nodePositions.get(edge.source);
-                const tgt = nodePositions.get(edge.target);
-                if (!src || !tgt) return null;
-                const isCrossPlatform = edge.type === 'cross_platform_propagation';
+              {/* Scaled Graph Container */}
+              <g
+                transform={`translate(${centerX * (1 - zoomLevel)}, ${centerY * (1 - zoomLevel)}) scale(${zoomLevel})`}
+                className="transition-transform duration-200 ease-out"
+              >
+                {/* Render Active Edges */}
+                {visibleEdges.map((edge) => {
+                  const src = nodePositions.get(edge.source);
+                  const tgt = nodePositions.get(edge.target);
+                  if (!src || !tgt) return null;
+                  const isCrossPlatform = edge.type === 'cross_platform_propagation';
 
-                return (
-                  <g key={edge.id} className="transition-all duration-300">
-                    <line
-                      x1={src.x}
-                      y1={src.y}
-                      x2={tgt.x}
-                      y2={tgt.y}
-                      stroke={isCrossPlatform ? '#8E44AD' : '#111111'}
-                      strokeWidth={edge.weight * 2.2}
-                      strokeDasharray={isCrossPlatform ? '4 2' : 'none'}
-                      opacity={0.7}
-                      markerEnd="url(#arrow-black)"
-                    />
-                  </g>
-                );
-              })}
+                  return (
+                    <g key={edge.id} className="transition-all duration-300">
+                      <line
+                        x1={src.x}
+                        y1={src.y}
+                        x2={tgt.x}
+                        y2={tgt.y}
+                        stroke={isCrossPlatform ? '#8E44AD' : '#111111'}
+                        strokeWidth={edge.weight * 2.2}
+                        strokeDasharray={isCrossPlatform ? '4 2' : 'none'}
+                        opacity={0.7}
+                        markerEnd="url(#arrow-black)"
+                      />
+                    </g>
+                  );
+                })}
 
-              {/* Render Nodes */}
-              {network.nodes.map((node) => {
-                const pos = nodePositions.get(node.id) || { x: centerX, y: centerY };
-                const isSelected = selectedNode?.id === node.id;
-                const radiusSize = node.is_seed ? 22 : 12 + node.centrality * 12;
+                {/* Render Nodes */}
+                {network.nodes.map((node) => {
+                  const pos = nodePositions.get(node.id) || { x: centerX, y: centerY };
+                  const isSelected = selectedNode?.id === node.id;
+                  const radiusSize = node.is_seed ? 22 : 12 + node.centrality * 12;
 
-                return (
-                  <g
-                    key={node.id}
-                    onClick={() => setSelectedNode(node)}
-                    className="cursor-pointer transition-transform duration-200 hover:scale-110"
-                  >
-                    {/* Ring indicator */}
-                    {(node.is_seed || isSelected) && (
+                  return (
+                    <g
+                      key={node.id}
+                      onClick={() => setSelectedNode(node)}
+                      className="cursor-pointer transition-transform duration-200 hover:scale-110"
+                    >
+                      {/* Ring indicator */}
+                      {(node.is_seed || isSelected) && (
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={radiusSize + 6}
+                          fill="none"
+                          stroke="#111111"
+                          strokeWidth="1.5"
+                          strokeDasharray={node.is_seed ? 'none' : '3 2'}
+                          className="animate-pulse"
+                        />
+                      )}
+
+                      {/* Node circle */}
                       <circle
                         cx={pos.x}
                         cy={pos.y}
-                        r={radiusSize + 6}
-                        fill="none"
-                        stroke="#111111"
-                        strokeWidth="1.5"
-                        strokeDasharray={node.is_seed ? 'none' : '3 2'}
-                        className="animate-pulse"
+                        r={radiusSize}
+                        fill={
+                          node.is_seed
+                            ? '#111111'
+                            : node.type === 'content_cluster'
+                            ? '#C0392B'
+                            : node.type === 'channel'
+                            ? '#2A86C8'
+                            : '#5E5A54'
+                        }
+                        stroke="#FFFFFF"
+                        strokeWidth="2.5"
+                        className="shadow-sm"
                       />
-                    )}
 
-                    {/* Node circle */}
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={radiusSize}
-                      fill={
-                        node.is_seed
-                          ? '#111111'
-                          : node.type === 'content_cluster'
-                          ? '#C0392B'
-                          : node.type === 'channel'
-                          ? '#2A86C8'
-                          : '#5E5A54'
-                      }
-                      stroke="#FFFFFF"
-                      strokeWidth="2.5"
-                      className="shadow-sm"
-                    />
-
-                    {/* Label */}
-                    <text
-                      x={pos.x}
-                      y={pos.y + radiusSize + 15}
-                      textAnchor="middle"
-                      fill="#111111"
-                      fontSize="10"
-                      fontWeight={node.is_seed || isSelected ? '800' : '600'}
-                      className="pointer-events-none"
-                    >
-                      {node.label.length > 20 ? node.label.slice(0, 18) + '...' : node.label}
-                    </text>
-                  </g>
-                );
-              })}
+                      {/* Label */}
+                      <text
+                        x={pos.x}
+                        y={pos.y + radiusSize + 15}
+                        textAnchor="middle"
+                        fill="#111111"
+                        fontSize="10"
+                        fontWeight={node.is_seed || isSelected ? '800' : '600'}
+                        className="pointer-events-none"
+                      >
+                        {node.label.length > 20 ? node.label.slice(0, 18) + '...' : node.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
             </svg>
           </div>
 

@@ -35,11 +35,24 @@ import {
   FileCode,
 } from 'lucide-react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface ReportsViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ analysis }) => {
+export const ReportsView: React.FC<ReportsViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Intelligence Report Available"
+        description="Ingest real video content or social post to compile an executive intelligence report or print-ready PDF."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const [reportType, setReportType] = useState<'executive' | 'creator'>('executive');
   const [isCopied, setIsCopied] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);

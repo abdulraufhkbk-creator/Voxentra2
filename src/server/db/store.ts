@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { AnalysisResult } from '../../types/analysis';
-import { SCENARIO_1_DEEPFAKE, SCENARIO_2_EMERGING_TREND, SCENARIO_3_RECONTEXTUALIZED } from '../../data/seedScenarios';
 import { supabaseService } from './supabaseClient';
 
 export interface ReportItem {
@@ -43,36 +42,10 @@ export class VoxentraStore {
         }
       }
     } catch (e) {
-      console.warn('Could not read existing voxentra_store.json, creating initial store:', e);
+      console.warn('Could not read existing voxentra_store.json:', e);
     }
 
-    // Seed default scenarios if empty so the app is immediately populated on launch
-    if (this.analyses.size === 0) {
-      this.saveAnalysis(SCENARIO_1_DEEPFAKE);
-      this.saveAnalysis(SCENARIO_2_EMERGING_TREND);
-      this.saveAnalysis(SCENARIO_3_RECONTEXTUALIZED);
-
-      this.saveReport({
-        id: 'rep-01',
-        analysis_id: SCENARIO_1_DEEPFAKE.id,
-        title: 'Executive Intelligence Brief: Synthetic Speech & Phishing Campaign',
-        created_at: new Date().toISOString(),
-        summary: 'Forensic evaluation of high-risk synthetic video featuring fabricated government debt relief speech.',
-        risk_level: 'HIGH',
-        pdf_ready: true,
-      });
-      this.saveReport({
-        id: 'rep-02',
-        analysis_id: SCENARIO_2_EMERGING_TREND.id,
-        title: 'Topical Momentum Brief: BhashaTech Multilingual Open Model',
-        created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-        summary: 'Analysis of organic student & developer engagement following open weights foundation model release.',
-        risk_level: 'LOW',
-        pdf_ready: true,
-      });
-    }
-
-    // If Supabase is connected, attempt background sync of seeded items
+    // Sync real records to Supabase if configured
     if (supabaseService.isConfigured()) {
       this.syncToSupabase();
     }
@@ -141,8 +114,10 @@ export class VoxentraStore {
     this.persist();
 
     if (supabaseService.isConfigured()) {
-      const a = this.getAnalysis(report.analysis_id) || SCENARIO_1_DEEPFAKE;
-      supabaseService.saveReport(report, a).catch(() => {});
+      const a = this.getAnalysis(report.analysis_id);
+      if (a) {
+        supabaseService.saveReport(report, a).catch(() => {});
+      }
     }
 
     return report;

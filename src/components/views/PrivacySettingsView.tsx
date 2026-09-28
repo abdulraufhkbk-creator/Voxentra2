@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ConnectorStatus } from '../../server/connectors/types';
 import { PlatformIcon, getPlatformName } from '../common/PlatformIcon';
+import { usePlatformData } from '../../context/PlatformDataProvider';
 import {
   ShieldCheck,
   Lock,
@@ -17,53 +18,22 @@ import {
 } from 'lucide-react';
 
 export const PrivacySettingsView: React.FC = () => {
-  const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
+  const { connectors, dbStatus: platformDbStatus, testConnector, refreshSources } = usePlatformData();
   const [testingPlatform, setTestingPlatform] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ platform: string; message: string; connected: boolean } | null>(null);
-  const [dbStatus, setDbStatus] = useState<{ type: string; supabase_configured: boolean; connected: boolean; message: string; schema_pending?: boolean } | null>(null);
+  const [dbStatus, setDbStatus] = useState<any>(platformDbStatus);
   const [isTestingDb, setIsTestingDb] = useState(false);
-
-  useEffect(() => {
-    fetchConnectors();
-    fetchDbStatus();
-  }, []);
-
-  const fetchConnectors = async () => {
-    try {
-      const res = await fetch('/api/connectors/status');
-      if (res.ok) {
-        const data = await res.json();
-        setConnectors(data);
-      }
-    } catch (e) {
-      console.warn('Failed to load connector statuses:', e);
-    }
-  };
-
-  const fetchDbStatus = async () => {
-    try {
-      const res = await fetch('/api/database/status');
-      if (res.ok) {
-        const data = await res.json();
-        setDbStatus(data);
-      }
-    } catch (e) {
-      console.warn('Failed to load database status:', e);
-    }
-  };
 
   const handleTestConnection = async (platform: string) => {
     setTestingPlatform(platform);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/connectors/${platform}/test`, { method: 'POST' });
-      const data = await res.json();
+      const res = await testConnector(platform as any);
       setTestResult({
         platform,
-        message: data.message,
-        connected: data.connected,
+        message: res.message,
+        connected: res.ok,
       });
-      fetchConnectors();
     } catch (e: any) {
       setTestResult({
         platform,
@@ -88,8 +58,8 @@ export const PrivacySettingsView: React.FC = () => {
     }
   };
 
-  const liveConnectors = connectors.filter((c) => !c.is_demo_only);
-  const demoConnectors = connectors.filter((c) => c.is_demo_only);
+  const liveConnectors = connectors.filter((c) => c.status === 'connected_live');
+  const demoConnectors = connectors.filter((c) => c.status !== 'connected_live');
 
   return (
     <div className="p-4 sm:p-6 lg:p-9 max-w-7xl mx-auto space-y-8 text-[#111111]">
@@ -141,12 +111,12 @@ export const PrivacySettingsView: React.FC = () => {
             <span className="text-[#5E5A54]">Database Engine:</span>
             <span
               className={`font-semibold px-2.5 py-0.5 rounded-full text-[11px] ${
-                dbStatus?.supabase_configured
+                dbStatus?.connected
                   ? 'bg-[#111111] text-[#F8F5EF]'
                   : 'bg-[#FAF3E8] text-[#845318] border border-[#9A6B2F]/30'
               }`}
             >
-              {dbStatus?.supabase_configured ? 'SUPABASE POSTGRESQL' : 'LOCAL PERSISTENT STORE (data/voxentra_store.json)'}
+              {dbStatus?.connected ? (dbStatus.storage_type || 'SUPABASE POSTGRESQL') : 'LOCAL PERSISTENT STORE'}
             </span>
           </div>
 
@@ -174,7 +144,7 @@ export const PrivacySettingsView: React.FC = () => {
           </div>
 
           <button
-            onClick={fetchConnectors}
+            onClick={refreshSources}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#D8CFC2] hover:bg-[#F3EEE7] text-[#111111] text-xs font-semibold cursor-pointer w-fit shadow-2xs"
           >
             <RefreshCw size={13} />

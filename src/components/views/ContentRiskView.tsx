@@ -11,11 +11,24 @@ import {
   FileSearch,
 } from 'lucide-react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface ContentRiskViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const ContentRiskView: React.FC<ContentRiskViewProps> = ({ analysis }) => {
+export const ContentRiskView: React.FC<ContentRiskViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Content Risk Audit Available"
+        description="Ingest real video content or social post to audit C2PA provenance, synthetic indicators, and context drift."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { risk } = analysis;
   const [expandedSignalId, setExpandedSignalId] = useState<string | null>(
     risk.signals[0]?.id || null

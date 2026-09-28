@@ -9,11 +9,24 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface AudienceViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const AudienceView: React.FC<AudienceViewProps> = ({ analysis }) => {
+export const AudienceView: React.FC<AudienceViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Audience Intelligence Available"
+        description="Ingest real video content or submit a social post to generate audience demographics and community stance clusters."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { audience, sentiment } = analysis;
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>(
     audience.segments[0]?.id || ''

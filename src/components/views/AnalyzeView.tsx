@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { AnalysisResult, AnalysisScenario, SocialPlatform } from '../../types/analysis';
-import { SEEDED_SCENARIOS } from '../../data/seedScenarios';
+import { AnalysisResult, SocialPlatform } from '../../types/analysis';
 import { PlatformIcon, getPlatformName } from '../common/PlatformIcon';
-import { RiskBadge } from '../common/RiskBadge';
+import { usePlatformData } from '../../context/PlatformDataProvider';
 import {
   Search,
   Upload,
@@ -16,36 +15,32 @@ import {
   Hash,
   ArrowRight,
   Radio,
+  ExternalLink,
 } from 'lucide-react';
 
 interface AnalyzeViewProps {
   onAnalysisComplete: (result: AnalysisResult) => void;
-  onSelectScenario: (scenario: AnalysisScenario) => void;
 }
 
-const PLATFORMS: SocialPlatform[] = ['x', 'youtube', 'telegram', 'instagram', 'facebook', 'reddit'];
-
 const ANALYSIS_STEPS = [
-  'Collecting context',
-  'Understanding content',
-  'Analyzing audience',
-  'Mapping trends',
-  'Mapping network',
-  'Assessing content risk',
-  'Generating explanation',
+  'Querying platform API connector',
+  'Ingesting authentic metadata & metrics',
+  'Parsing linguistic & narrative structure',
+  'Running Gemini 3.8 Flash multi-modal audit',
+  'Extracting risk signals & provenance evidence',
+  'Persisting intelligence dossier to database',
 ];
 
 export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
   onAnalysisComplete,
-  onSelectScenario,
 }) => {
+  const { connectors } = usePlatformData();
   const [mode, setMode] = useState<'content' | 'topic' | 'account'>('content');
-  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform>('x');
+  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform>('youtube');
   const [urlInput, setUrlInput] = useState('');
   const [textInput, setTextInput] = useState('');
   const [topicInput, setTopicInput] = useState('');
   const [accountInput, setAccountInput] = useState('');
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('deepfake-policy-claim');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   // Loading state
@@ -53,22 +48,12 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleScenarioPick = (scId: string) => {
-    setSelectedScenarioId(scId);
-    const scenario = SEEDED_SCENARIOS.find((s) => s.id === scId);
-    if (scenario) {
-      setSelectedPlatform(scenario.platform);
-      setTextInput(scenario.data.content.text);
-      setUrlInput(scenario.data.content.source_reference);
-    }
-  };
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFileName(file.name);
       if (!textInput) {
-        setTextInput(`[Uploaded Media: ${file.name}] Suspicious speech with lip-sync anomalies and zero verifiable C2PA credentials.`);
+        setTextInput(`[Uploaded Media File: ${file.name}] Ingested for multi-modal optical and forensic inspection.`);
       }
     }
   };
@@ -84,19 +69,28 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
 
     try {
       let endpoint = '/api/analyze/content';
-      let payload: any = {
-        platform: selectedPlatform,
-        text: textInput || undefined,
-        url: urlInput || undefined,
-        scenario_id: selectedScenarioId || undefined,
-      };
+      let payload: any = {};
 
-      if (mode === 'topic') {
+      if (mode === 'content') {
+        const effectiveQuery = urlInput.trim() || textInput.trim() || 'trending';
+        payload = {
+          platform: selectedPlatform,
+          url: urlInput.trim() || undefined,
+          text: textInput.trim() || undefined,
+          content_id: effectiveQuery,
+        };
+      } else if (mode === 'topic') {
         endpoint = '/api/analyze/topic';
-        payload = { topic: topicInput || '#BhashaTech AI Consortium' };
+        if (!topicInput.trim()) {
+          throw new Error('Please enter a topic, hashtag, or keyword to analyze.');
+        }
+        payload = { topic: topicInput.trim() };
       } else if (mode === 'account') {
         endpoint = '/api/analyze/account';
-        payload = { account: accountInput || '@AnonTrendCurator_92', platform: selectedPlatform };
+        if (!accountInput.trim()) {
+          throw new Error('Please enter a channel title, handle, or pseudonym to audit.');
+        }
+        payload = { account: accountInput.trim(), platform: selectedPlatform };
       }
 
       const response = await fetch(endpoint, {
@@ -106,7 +100,8 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned HTTP ${response.status}`);
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || errJson.error || `Server returned HTTP ${response.status}`);
       }
 
       const result: AnalysisResult = await response.json();
@@ -116,11 +111,11 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
       setTimeout(() => {
         setIsLoading(false);
         onAnalysisComplete(result);
-      }, 500);
+      }, 400);
     } catch (err: any) {
       clearInterval(timerInterval);
       setIsLoading(false);
-      setErrorMessage(err?.message || 'Failed to complete analysis pipeline. Please retry.');
+      setErrorMessage(err?.message || 'Failed to complete analysis. Please check input and retry.');
     }
   };
 
@@ -129,15 +124,15 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
       {/* View Header */}
       <div>
         <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-[#111111] mb-1">
-          <span>PIPELINE ENGINE</span>
+          <span>REAL-TIME INGESTION</span>
           <span className="text-[#A39989]">/</span>
-          <span>MULTI-SOURCE INGESTION</span>
+          <span>AUTHENTIC SOCIAL DATA</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-black text-[#111111] tracking-tight">
           Analyze Content & Context
         </h1>
         <p className="text-xs sm:text-sm text-[#5E5A54] mt-1.5 max-w-2xl leading-relaxed">
-          Submit public social media posts, URLs, uploaded media clips, or topical keywords. The Voxentra intelligence engine extracts linguistic signals, authenticity markers, and network trajectories.
+          Ingest real video metadata, channel metrics, and public social feeds directly through official APIs. All intelligence dossiers are synthesized from authentic observations.
         </p>
       </div>
 
@@ -152,7 +147,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
           }`}
         >
           <Layers size={14} />
-          <span>Content & Media Post</span>
+          <span>Real Content & Video Ingestion</span>
         </button>
 
         <button
@@ -176,7 +171,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
           }`}
         >
           <AtSign size={14} />
-          <span>Account Impact Audit</span>
+          <span>Channel & Account Audit</span>
         </button>
       </div>
 
@@ -191,30 +186,38 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
                   1. Select Source Platform
                 </label>
                 <span className="text-[11px] text-[#7D786F]">
-                  Live APIs: X, YouTube, Telegram · Demo Datasets: IG, FB, Reddit
+                  Active Live: YouTube, Telegram · Disabled: Instagram, FB, Reddit
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                {PLATFORMS.map((platform) => {
-                  const isSelected = selectedPlatform === platform;
-                  const isLive = platform === 'x' || platform === 'youtube' || platform === 'telegram';
+                {connectors.map((connector) => {
+                  const isSelected = selectedPlatform === connector.platform;
+                  const isConnectedLive = connector.status === 'connected_live';
+                  const isNotConfigured = connector.status === 'not_configured';
                   return (
                     <button
-                      key={platform}
+                      key={connector.platform}
                       type="button"
-                      onClick={() => setSelectedPlatform(platform)}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all text-xs font-bold cursor-pointer relative ${
-                        isSelected
-                          ? 'border-[#111111] bg-white text-[#111111] shadow-sm ring-1 ring-[#111111]'
-                          : 'border-[#D8CFC2]/70 bg-white/50 text-[#5E5A54] hover:bg-white/80 hover:text-[#111111]'
+                      disabled={isNotConfigured}
+                      onClick={() => setSelectedPlatform(connector.platform)}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all text-xs font-bold relative ${
+                        isNotConfigured
+                          ? 'border-black/5 bg-black/5 text-[#A39989] cursor-not-allowed opacity-50'
+                          : isSelected
+                          ? 'border-[#111111] bg-white text-[#111111] shadow-sm ring-1 ring-[#111111] cursor-pointer'
+                          : 'border-[#D8CFC2]/70 bg-white/50 text-[#5E5A54] hover:bg-white/80 hover:text-[#111111] cursor-pointer'
                       }`}
                     >
-                      <PlatformIcon platform={platform} size={22} className="mb-1.5" />
-                      <span>{getPlatformName(platform)}</span>
-                      {isLive && (
-                        <span className="text-[9px] font-mono font-bold text-[#111111] bg-[#FAF3E8] border border-[#D8CFC2] px-1.5 py-0.2 rounded-full mt-1">
-                          LIVE
+                      <PlatformIcon platform={connector.platform} size={22} className="mb-1.5" />
+                      <span>{connector.displayName}</span>
+                      {isConnectedLive ? (
+                        <span className="text-[9px] font-mono font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full mt-1">
+                          LIVE API
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-mono text-[#7D786F] mt-1">
+                          {isNotConfigured ? 'DISABLED' : 'RESTRICTED'}
                         </span>
                       )}
                     </button>
@@ -223,71 +226,42 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
               </div>
             </div>
 
-            {/* Quick Demo Scenario Picker */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#111111]">
-                  2. Choose Seeded Scenario or Enter Content
-                </label>
-                <span className="text-[11px] text-[#7D786F]">
-                  Internally consistent demonstration benchmarks
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {SEEDED_SCENARIOS.map((sc) => {
-                  const isPicked = selectedScenarioId === sc.id;
-                  return (
-                    <div
-                      key={sc.id}
-                      onClick={() => handleScenarioPick(sc.id)}
-                      className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all ${
-                        isPicked
-                          ? 'border-[#111111] bg-white text-[#111111] shadow-sm ring-1 ring-[#111111]'
-                          : 'border-[#D8CFC2]/70 bg-white/50 text-[#5E5A54] hover:bg-white/80'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-extrabold text-[#111111] truncate">{sc.title}</span>
-                        <RiskBadge level={sc.risk_badge} size="sm" />
-                      </div>
-                      <p className="text-[11px] text-[#5E5A54] line-clamp-2 leading-relaxed">
-                        {sc.preview_text}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Optional URL Input */}
+            {/* URL / Video ID / Query Input */}
             <div className="space-y-2">
               <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#111111] flex items-center justify-between">
-                <span>Public Post / Media URL (Optional)</span>
-                <span className="text-[11px] text-[#7D786F] lowercase font-normal">URL input is not mandatory</span>
+                <span>Public Post / Video URL or Search Keyword</span>
+                <span className="text-[11px] text-[#7D786F] font-normal">
+                  {selectedPlatform === 'youtube'
+                    ? 'Paste any YouTube URL (e.g. watch?v=... or search term)'
+                    : 'Paste public URL or reference'}
+                </span>
               </label>
               <div className="relative">
                 <LinkIcon size={16} className="absolute left-3.5 top-3.5 text-[#7D786F]" />
                 <input
-                  type="url"
+                  type="text"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or https://x.com/status/..."
+                  placeholder={
+                    selectedPlatform === 'youtube'
+                      ? 'e.g. https://www.youtube.com/watch?v=... or "climate policy live"'
+                      : 'https://...'
+                  }
                   className="w-full pl-10 pr-4 py-3 rounded-2xl liquid-glass-input text-xs text-[#111111] placeholder-[#A39989] focus:outline-none"
                 />
               </div>
             </div>
 
-            {/* Post Text Input */}
+            {/* Post Text / Caption / Transcript Input */}
             <div className="space-y-2">
               <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#111111] block">
-                Post Text / Caption / Speech Transcript
+                Post Text / Caption / Speech Transcript (Optional if URL provided)
               </label>
               <textarea
                 rows={3}
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Enter social post text, headline, or claim to evaluate sentiment, narrative evolution, and authenticity signals..."
+                placeholder="Enter social post text, video description, or transcript to evaluate sentiment, narrative framing, and authenticity markers..."
                 className="w-full p-4 rounded-2xl liquid-glass-input text-xs text-[#111111] placeholder-[#A39989] focus:outline-none leading-relaxed"
               />
             </div>
@@ -295,7 +269,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
             {/* Media Upload Box */}
             <div className="space-y-2">
               <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#111111] block">
-                Upload Media for Prototype Testing (Optional)
+                Attach Media for Forensic Optical Analysis (Optional)
               </label>
               <div className="border border-dashed border-[#C4B8A5] bg-white/40 rounded-2xl p-6 text-center hover:bg-white/70 transition-all relative cursor-pointer">
                 <input
@@ -339,13 +313,13 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
                   type="text"
                   value={topicInput}
                   onChange={(e) => setTopicInput(e.target.value)}
-                  placeholder="e.g. #BhashaTech AI Consortium or Student Loan Relief"
+                  placeholder="e.g. #QuantumComputing or AI Deepfake Regulation"
                   className="w-full pl-10 pr-4 py-3 rounded-2xl liquid-glass-input text-xs text-[#111111] placeholder-[#A39989] focus:outline-none"
                 />
               </div>
             </div>
             <p className="text-xs text-[#5E5A54] leading-relaxed">
-              Topical analysis aggregates multi-platform conversations, maps emerging narrative shifts, and analyzes demographic cluster adoption.
+              Topical analysis aggregates multi-platform conversations across active APIs, maps emerging narrative shifts, and analyzes demographic cluster adoption.
             </p>
           </div>
         )}
@@ -354,7 +328,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#111111] block">
-                Account Pseudonym or Handle
+                Channel Title, Pseudonym, or Handle
               </label>
               <div className="relative">
                 <AtSign size={16} className="absolute left-3.5 top-3.5 text-[#5E5A54]" />
@@ -362,7 +336,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
                   type="text"
                   value={accountInput}
                   onChange={(e) => setAccountInput(e.target.value)}
-                  placeholder="e.g. @AnonTrendCurator_92 or @IndicComputeConsortium"
+                  placeholder="e.g. @ScienceExplorationDesk or TechInquirer"
                   className="w-full pl-10 pr-4 py-3 rounded-2xl liquid-glass-input text-xs text-[#111111] placeholder-[#A39989] focus:outline-none"
                 />
               </div>
@@ -385,7 +359,7 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[11px] text-[#7D786F] flex items-center gap-1.5 font-medium">
             <Sparkles size={14} className="text-[#111111]" />
-            <span>Server-side Gemini AI synthesis with deterministic fallbacks</span>
+            <span>Live data ingestion via official APIs with Gemini 3.8 Flash NLP synthesis</span>
           </div>
 
           <button
@@ -402,14 +376,14 @@ export const AnalyzeView: React.FC<AnalyzeViewProps> = ({
             ) : (
               <>
                 <Search size={15} />
-                <span>Analyze This</span>
+                <span>Ingest & Analyze Live Data</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Real Multi-step Loading Animation Modal */}
+      {/* Multi-step Loading Animation Modal */}
       {isLoading && (
         <div className="fixed inset-0 bg-[#111111]/50 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="liquid-glass rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl space-y-6 border border-white">

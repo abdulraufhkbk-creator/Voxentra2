@@ -7,11 +7,24 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface TimelineViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const TimelineView: React.FC<TimelineViewProps> = ({ analysis }) => {
+export const TimelineView: React.FC<TimelineViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Timeline Events Available"
+        description="Ingest real social content to trace event milestones, origin timestamps, and velocity acceleration."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { timeline } = analysis;
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
 

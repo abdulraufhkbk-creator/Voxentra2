@@ -39,8 +39,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface CreatorLensViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
 const PLATFORM_FILTERS: Array<{ key: SocialPlatform | 'all'; label: string }> = [
@@ -98,7 +101,17 @@ const OBJECTIVE_OPTIONS: CreatorObjective[] = [
   'Highlight Emerging Innovations',
 ];
 
-export const CreatorLensView: React.FC<CreatorLensViewProps> = ({ analysis }) => {
+export const CreatorLensView: React.FC<CreatorLensViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Creator Intelligence Available"
+        description="Ingest real video content or submit social context to generate Creator Lens opportunity insights, Idea Forge concepts, and conversation gap analysis."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const intel = deriveCreatorIntelligence(analysis);
 
   // Filters state

@@ -3,54 +3,102 @@ import { ConnectorRegistry } from './connectors';
 import { aiManager } from './ai';
 import { dbStore, ReportItem } from './db/store';
 import { supabaseService } from './db/supabaseClient';
-import { AnalysisResult, SocialPlatform } from '../types/analysis';
-import { SEEDED_SCENARIOS } from '../data/seedScenarios';
+import { AnalysisResult, NormalizedSocialContent, SocialPlatform } from '../types/analysis';
 
 export const apiRouter = Router();
 
-// 1. POST /api/analyze/content
+// ============================================================================
+// 1. POST /api/analyze/content - Ingest & Analyze Real Social Content
+// ============================================================================
 apiRouter.post('/analyze/content', async (req: Request, res: Response) => {
   try {
-    const { platform = 'instagram', content_id, text, scenario_id, url } = req.body;
+    const { platform = 'youtube', content_id, text, url } = req.body;
+    const hasCustomText = typeof text === 'string' && text.trim().length > 0;
+    const hasCustomUrl = typeof url === 'string' && url.trim().length > 0;
 
-    // Check if user selected one of the 3 seeded scenarios
-    if (scenario_id) {
-      const match = SEEDED_SCENARIOS.find((s) => s.id === scenario_id);
-      if (match) {
-        const result: AnalysisResult = {
-          ...match.data,
-          id: `vx-analysis-${Date.now()}`,
+    const targetPlatform = platform as SocialPlatform;
+    const connector = ConnectorRegistry.get(targetPlatform);
+    const connStatus = connector.getStatus();
+
+    let content: NormalizedSocialContent;
+
+    if (connStatus.status === 'connected_live' || connStatus.is_live) {
+      // Fetch directly from official platform API
+      try {
+        content = await connector.fetchContent(url || content_id || text || 'trending');
+      } catch (fetchErr: any) {
+        if (!hasCustomText && !hasCustomUrl) {
+          return res.status(400).json({
+            error: 'Live Ingestion Failed',
+            message: fetchErr?.message || `Failed to fetch live content from ${targetPlatform.toUpperCase()}.`,
+          });
+        }
+        // If user supplied manual text/url, construct valid observation item
+        content = {
+          platform: targetPlatform,
+          content_id: `user_${Date.now()}`,
+          author_pseudonym: `Submitted_${targetPlatform.toUpperCase()}_Item`,
+          content_type: 'post',
+          text: text?.trim() || 'Observed Content Submission',
           timestamp: new Date().toISOString(),
-          data_source_type: 'SIMULATED DATA',
+          engagement: { views: 1, likes: 0, shares: 0, reposts: 0, comments: 0, velocity_rate: 'Live input' },
+          language: { primary: 'English', code_mixed: [], script: 'Latin' },
+          location_signal: { region: 'Other/Unknown', confidence: 0.5 },
+          topic: 'Direct Submission',
+          hashtags: [],
+          mentions: [],
+          relationships: [],
+          source_reference: url?.trim() || `User manual submission on ${targetPlatform.toUpperCase()}`,
         };
-        dbStore.saveAnalysis(result);
-        return res.json(result);
       }
+    } else {
+      // Platform is not configured or disabled
+      if (!hasCustomText && !hasCustomUrl) {
+        return res.status(400).json({
+          error: 'Platform Not Configured',
+          message: `${connStatus.displayName} is currently ${connStatus.status.toUpperCase().replace('_', ' ')}. To analyze live data, select an active live source (e.g. YouTube, Telegram) or supply a direct URL/text.`,
+        });
+      }
+
+      // User supplied custom text for inspection
+      content = {
+        platform: targetPlatform,
+        content_id: `manual_${Date.now()}`,
+        author_pseudonym: `User_${targetPlatform.toUpperCase()}_Submission`,
+        content_type: 'post',
+        text: text?.trim() || '',
+        timestamp: new Date().toISOString(),
+        engagement: { views: 1, likes: 0, shares: 0, reposts: 0, comments: 0, velocity_rate: 'Manual submission' },
+        language: { primary: 'English', code_mixed: [], script: 'Latin' },
+        location_signal: { region: 'Other/Unknown', confidence: 0.5 },
+        topic: 'Manual Inspection',
+        hashtags: [],
+        mentions: [],
+        relationships: [],
+        source_reference: url?.trim() || `Manual text submission`,
+      };
     }
 
-    const connector = ConnectorRegistry.get(platform as SocialPlatform);
-    const content = await connector.fetchContent(url || content_id || 'sample_item');
-
-    if (text && text.trim().length > 0) {
+    if (hasCustomText) {
       content.text = text.trim();
     }
-    if (url && url.trim().length > 0) {
+    if (hasCustomUrl) {
       content.source_reference = url.trim();
     }
 
+    // Run real AI / NLP analytics engine
     const ai = aiManager.getActiveProvider();
     const aiOutput = await ai.analyzeFullContent({ content });
 
-    const isLive = connector.getStatus().is_live && !connector.isDemoOnly;
-
+    const displayText = content.text || 'Content Analysis';
     const analysisResult: AnalysisResult = {
       id: `vx-analysis-${Date.now()}`,
       timestamp: new Date().toISOString(),
       input_type: 'content',
-      target_platform: platform as SocialPlatform,
-      target_query: url || content_id || 'User Upload Analysis',
-      title: `${platform.toUpperCase()} Analysis: "${content.text.slice(0, 48)}..."`,
-      data_source_type: isLive ? 'LIVE/CONNECTED DATA' : 'SIMULATED DATA',
+      target_platform: targetPlatform,
+      target_query: url || content_id || text?.slice(0, 30) || 'Live Stream Analysis',
+      title: `${targetPlatform.toUpperCase()} Analysis: "${displayText.slice(0, 48)}${displayText.length > 48 ? '...' : ''}"`,
+      data_source_type: connStatus.is_live ? 'LIVE/CONNECTED DATA' : 'USER-PROVIDED DATA',
       ai_engine: aiOutput.ai_engine,
       content,
       risk: aiOutput.risk,
@@ -62,7 +110,7 @@ apiRouter.post('/analyze/content', async (req: Request, res: Response) => {
       cross_platform: aiOutput.cross_platform,
       answers: aiOutput.answers,
       privacy: {
-        data_points_analyzed: aiOutput.audience.sample_size || 12000,
+        data_points_analyzed: aiOutput.audience?.sample_size || content.engagement.views || 1,
         anonymization_method: 'k-Anonymity (k>=50) cluster aggregation',
         personal_identifiers_retained: 0,
         inference_type: 'Aggregate multi-modal signal analysis',
@@ -70,7 +118,7 @@ apiRouter.post('/analyze/content', async (req: Request, res: Response) => {
       },
     };
 
-    dbStore.saveAnalysis(analysisResult);
+    try { dbStore.saveAnalysis(analysisResult); } catch (e) { console.warn('dbStore save failed:', e); }
     return res.json(analysisResult);
   } catch (error: any) {
     console.error('Error in /api/analyze/content:', error);
@@ -78,52 +126,54 @@ apiRouter.post('/analyze/content', async (req: Request, res: Response) => {
   }
 });
 
-// 2. POST /api/analyze/topic
-apiRouter.post('/api/analyze/topic', async (req: Request, res: Response) => {
-  // handled below
-});
-
+// ============================================================================
+// 2. POST /api/analyze/topic - Topical Intelligence
+// ============================================================================
 apiRouter.post('/analyze/topic', async (req: Request, res: Response) => {
   try {
-    const { topic } = req.body;
-    if (!topic || typeof topic !== 'string') {
+    const rawTopic = req.body?.topic;
+    if (!rawTopic || typeof rawTopic !== 'string' || rawTopic.trim().length === 0) {
       return res.status(400).json({ error: 'Topic string is required' });
     }
+    const topic = rawTopic.trim();
 
     const ai = aiManager.getActiveProvider();
     const aiOutput = await ai.analyzeTopic(topic);
+
+    const activePlatforms = ConnectorRegistry.getActivePlatforms();
+    const primaryPlatform = activePlatforms.length > 0 ? activePlatforms[0] : 'youtube';
 
     const analysisResult: AnalysisResult = {
       id: `vx-topic-${Date.now()}`,
       timestamp: new Date().toISOString(),
       input_type: 'topic',
-      target_platform: 'x',
+      target_platform: primaryPlatform,
       target_query: topic,
       title: `Topical Intelligence: ${topic}`,
-      data_source_type: 'SIMULATED DATA',
+      data_source_type: 'AI-INFERRED DATA',
       ai_engine: aiOutput.ai_engine,
       content: {
-        platform: 'x',
+        platform: primaryPlatform,
         content_id: `topic_${Date.now()}`,
         author_pseudonym: 'TopicEcosystemAggregate',
         content_type: 'post',
         text: `Topical cluster analysis for ${topic}`,
         timestamp: new Date().toISOString(),
         engagement: {
-          views: 1800000,
-          likes: 95000,
-          shares: 34000,
-          reposts: 28000,
-          comments: 9200,
-          velocity_rate: '14.2k interactions / hour',
+          views: 1,
+          likes: 0,
+          shares: 0,
+          reposts: 0,
+          comments: 0,
+          velocity_rate: 'Topical cluster aggregation',
         },
-        language: { primary: 'English', code_mixed: ['Hinglish', 'Hindi', 'Tamil'], script: 'Indic / Latin' },
-        location_signal: { region: 'South India', confidence: 0.85 },
+        language: { primary: 'English', code_mixed: [], script: 'Latin' },
+        location_signal: { region: 'Other/Unknown', confidence: 0.8 },
         topic,
-        hashtags: [`#${topic.replace(/\s+/g, '')}`, '#VoxentraIntel'],
+        hashtags: [`#${topic.replace(/[^a-zA-Z0-9]/g, '')}`],
         mentions: [],
         relationships: [],
-        source_reference: `Aggregated topical cluster: ${topic}`,
+        source_reference: `Topical search query: ${topic}`,
       },
       risk: aiOutput.risk,
       sentiment: aiOutput.sentiment,
@@ -134,7 +184,7 @@ apiRouter.post('/analyze/topic', async (req: Request, res: Response) => {
       cross_platform: aiOutput.cross_platform,
       answers: aiOutput.answers,
       privacy: {
-        data_points_analyzed: aiOutput.audience.sample_size,
+        data_points_analyzed: aiOutput.audience?.sample_size || 1,
         anonymization_method: 'Topical macro-binning with zero user identifiers',
         personal_identifiers_retained: 0,
         inference_type: 'Topical conversation diffusion graph',
@@ -142,7 +192,7 @@ apiRouter.post('/analyze/topic', async (req: Request, res: Response) => {
       },
     };
 
-    dbStore.saveAnalysis(analysisResult);
+    try { dbStore.saveAnalysis(analysisResult); } catch (e) { console.warn('dbStore save failed:', e); }
     return res.json(analysisResult);
   } catch (error: any) {
     console.error('Error in /api/analyze/topic:', error);
@@ -150,48 +200,51 @@ apiRouter.post('/analyze/topic', async (req: Request, res: Response) => {
   }
 });
 
-// 3. POST /api/analyze/account
+// ============================================================================
+// 3. POST /api/analyze/account - Account Topology & Diffusion Audit
+// ============================================================================
 apiRouter.post('/analyze/account', async (req: Request, res: Response) => {
   try {
-    const { account, platform = 'x' } = req.body;
-    if (!account) {
-      return res.status(400).json({ error: 'Account pseudonym or handle required' });
+    const { account, platform = 'youtube' } = req.body;
+    if (!account || typeof account !== 'string' || account.trim().length === 0) {
+      return res.status(400).json({ error: 'Account handle or channel title is required' });
     }
+    const cleanAccount = account.trim();
 
     const ai = aiManager.getActiveProvider();
-    const aiOutput = await ai.analyzeAccount(account);
+    const aiOutput = await ai.analyzeAccount(cleanAccount);
 
     const analysisResult: AnalysisResult = {
       id: `vx-account-${Date.now()}`,
       timestamp: new Date().toISOString(),
       input_type: 'account',
       target_platform: platform as SocialPlatform,
-      target_query: account,
-      title: `Account Diffusion Impact: @${account.replace('@', '')}`,
-      data_source_type: 'SIMULATED DATA',
+      target_query: cleanAccount,
+      title: `Account Diffusion Impact: ${cleanAccount}`,
+      data_source_type: 'AI-INFERRED DATA',
       ai_engine: aiOutput.ai_engine,
       content: {
         platform: platform as SocialPlatform,
         content_id: `acc_${Date.now()}`,
-        author_pseudonym: `Pseudonym_${account.replace('@', '')}`,
+        author_pseudonym: cleanAccount,
         content_type: 'post',
-        text: `Behavioral topology audit for observed public account @${account.replace('@', '')}. Anonymized aggregate analysis.`,
+        text: `Behavioral topology audit for observed public account/channel ${cleanAccount}. Anonymized aggregate analysis.`,
         timestamp: new Date().toISOString(),
         engagement: {
-          views: 940000,
-          likes: 42000,
-          shares: 18000,
-          reposts: 12000,
-          comments: 4800,
-          velocity_rate: '6.4k interactions / hour',
+          views: 1,
+          likes: 0,
+          shares: 0,
+          reposts: 0,
+          comments: 0,
+          velocity_rate: 'Channel profile audit',
         },
-        language: { primary: 'English', code_mixed: ['Hinglish'], script: 'Latin' },
-        location_signal: { region: 'North India', confidence: 0.78 },
-        topic: 'Account Propagation Analysis',
+        language: { primary: 'English', code_mixed: [], script: 'Latin' },
+        location_signal: { region: 'Other/Unknown', confidence: 0.8 },
+        topic: 'Channel Profile Analysis',
         hashtags: [],
         mentions: [],
         relationships: [],
-        source_reference: `Public profile behavioral audit: ${account}`,
+        source_reference: `Public channel audit: ${cleanAccount}`,
       },
       risk: aiOutput.risk,
       sentiment: aiOutput.sentiment,
@@ -202,7 +255,7 @@ apiRouter.post('/analyze/account', async (req: Request, res: Response) => {
       cross_platform: aiOutput.cross_platform,
       answers: aiOutput.answers,
       privacy: {
-        data_points_analyzed: 11500,
+        data_points_analyzed: 1,
         anonymization_method: 'Differential privacy on connection degrees, full pseudonymization',
         personal_identifiers_retained: 0,
         inference_type: 'Public network centrality & reach modeling',
@@ -210,7 +263,7 @@ apiRouter.post('/analyze/account', async (req: Request, res: Response) => {
       },
     };
 
-    dbStore.saveAnalysis(analysisResult);
+    try { dbStore.saveAnalysis(analysisResult); } catch (e) { console.warn('dbStore save failed:', e); }
     return res.json(analysisResult);
   } catch (error: any) {
     console.error('Error in /api/analyze/account:', error);
@@ -218,51 +271,20 @@ apiRouter.post('/analyze/account', async (req: Request, res: Response) => {
   }
 });
 
-// 4. GET /api/analysis/:id
+// ============================================================================
+// 4. GET /api/analysis/:id - Fetch Stored Analysis
+// ============================================================================
 apiRouter.get('/analysis/:id', (req: Request, res: Response) => {
   const analysis = dbStore.getAnalysis(req.params.id);
   if (!analysis) {
-    return res.status(404).json({ error: 'Analysis not found' });
+    return res.status(404).json({ error: 'Analysis not found in persistent store' });
   }
   return res.json(analysis);
 });
 
-// 5. GET /api/analysis/:id/timeline
-apiRouter.get('/analysis/:id/timeline', (req: Request, res: Response) => {
-  const analysis = dbStore.getAnalysis(req.params.id);
-  if (!analysis) return res.status(404).json({ error: 'Analysis not found' });
-  return res.json(analysis.timeline);
-});
-
-// 6. GET /api/analysis/:id/audience
-apiRouter.get('/analysis/:id/audience', (req: Request, res: Response) => {
-  const analysis = dbStore.getAnalysis(req.params.id);
-  if (!analysis) return res.status(404).json({ error: 'Analysis not found' });
-  return res.json(analysis.audience);
-});
-
-// 7. GET /api/analysis/:id/trends
-apiRouter.get('/analysis/:id/trends', (req: Request, res: Response) => {
-  const analysis = dbStore.getAnalysis(req.params.id);
-  if (!analysis) return res.status(404).json({ error: 'Analysis not found' });
-  return res.json(analysis.trends);
-});
-
-// 8. GET /api/analysis/:id/network
-apiRouter.get('/analysis/:id/network', (req: Request, res: Response) => {
-  const analysis = dbStore.getAnalysis(req.params.id);
-  if (!analysis) return res.status(404).json({ error: 'Analysis not found' });
-  return res.json(analysis.network);
-});
-
-// 9. GET /api/analysis/:id/risk
-apiRouter.get('/analysis/:id/risk', (req: Request, res: Response) => {
-  const analysis = dbStore.getAnalysis(req.params.id);
-  if (!analysis) return res.status(404).json({ error: 'Analysis not found' });
-  return res.json(analysis.risk);
-});
-
-// 10. GET /api/history
+// ============================================================================
+// 5. GET /api/history - Historical Real Analyses
+// ============================================================================
 apiRouter.get('/history', (_req: Request, res: Response) => {
   const list = dbStore.getAllAnalyses().map((a) => ({
     id: a.id,
@@ -278,25 +300,33 @@ apiRouter.get('/history', (_req: Request, res: Response) => {
   return res.json(list);
 });
 
-// 11. DELETE /api/history/:id
+// ============================================================================
+// 6. DELETE /api/history/:id
+// ============================================================================
 apiRouter.delete('/history/:id', (req: Request, res: Response) => {
   const success = dbStore.deleteAnalysis(req.params.id);
   return res.json({ success });
 });
 
-// 12. DELETE /api/history
+// ============================================================================
+// 7. DELETE /api/history - Clear All History
+// ============================================================================
 apiRouter.delete('/history', (_req: Request, res: Response) => {
   dbStore.clearAllAnalyses();
   return res.json({ success: true, message: 'All analysis history cleared.' });
 });
 
-// 13. GET /api/connectors/status
+// ============================================================================
+// 8. GET /api/connectors/status - Truthful Data Sources Status
+// ============================================================================
 apiRouter.get('/connectors/status', (_req: Request, res: Response) => {
   const statuses = ConnectorRegistry.getAllStatuses();
   return res.json(statuses);
 });
 
-// 14. POST /api/connectors/:platform/test
+// ============================================================================
+// 9. POST /api/connectors/:platform/test - Live Connectivity Test On Demand
+// ============================================================================
 apiRouter.post('/connectors/:platform/test', async (req: Request, res: Response) => {
   try {
     const connector = ConnectorRegistry.get(req.params.platform as SocialPlatform);
@@ -307,7 +337,9 @@ apiRouter.post('/connectors/:platform/test', async (req: Request, res: Response)
   }
 });
 
-// 15. GET /api/database/status
+// ============================================================================
+// 10. GET /api/database/status
+// ============================================================================
 apiRouter.get('/database/status', async (_req: Request, res: Response) => {
   const isConfigured = supabaseService.isConfigured();
   if (!isConfigured) {
@@ -330,13 +362,17 @@ apiRouter.get('/database/status', async (_req: Request, res: Response) => {
   });
 });
 
-// 16. POST /api/database/test
+// ============================================================================
+// 11. POST /api/database/test
+// ============================================================================
 apiRouter.post('/database/test', async (_req: Request, res: Response) => {
   const test = await supabaseService.testConnection();
   return res.json(test);
 });
 
-// 17. GET /api/privacy/status
+// ============================================================================
+// 12. GET /api/privacy/status
+// ============================================================================
 apiRouter.get('/privacy/status', (_req: Request, res: Response) => {
   return res.json({
     privacy_mode: 'STRICT_ANONYMIZED_AGGREGATION',
@@ -349,7 +385,9 @@ apiRouter.get('/privacy/status', (_req: Request, res: Response) => {
   });
 });
 
-// 18. POST /api/reports/generate
+// ============================================================================
+// 13. POST /api/reports/generate
+// ============================================================================
 apiRouter.post('/reports/generate', (req: Request, res: Response) => {
   const { analysis_id, custom_notes } = req.body;
   const analysis = dbStore.getAnalysis(analysis_id);
@@ -377,21 +415,9 @@ apiRouter.post('/reports/generate', (req: Request, res: Response) => {
   });
 });
 
-// 19. GET /api/reports
+// ============================================================================
+// 14. GET /api/reports
+// ============================================================================
 apiRouter.get('/reports', (_req: Request, res: Response) => {
   return res.json(dbStore.getAllReports());
-});
-
-// 20. GET /api/extension/config
-apiRouter.get('/extension/config', (_req: Request, res: Response) => {
-  const appUrl = process.env.APP_URL || 'http://localhost:3000';
-  return res.json({
-    extension_name: 'Voxentra Browser Companion',
-    version: '1.0.0',
-    manifest_version: 3,
-    api_endpoint: `${appUrl}/api/analyze/content`,
-    active_live_platforms: ['x', 'youtube', 'telegram'],
-    demo_seeded_platforms: ['instagram', 'facebook', 'reddit'],
-    permissions_requested: ['activeTab', 'storage'],
-  });
 });

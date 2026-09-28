@@ -15,11 +15,24 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface CrossPlatformViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const CrossPlatformView: React.FC<CrossPlatformViewProps> = ({ analysis }) => {
+export const CrossPlatformView: React.FC<CrossPlatformViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Cross-Platform Data Available"
+        description="Ingest real social media content to map multi-platform propagation and origin detection."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { cross_platform } = analysis;
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformObservation>(
     cross_platform.platforms[0] || null

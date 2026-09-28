@@ -11,11 +11,24 @@ import {
 import { PlatformIcon } from '../common/PlatformIcon';
 import { motion } from 'motion/react';
 
+import { EmptyAnalysisState } from '../common/EmptyAnalysisState';
+
 interface TrendsViewProps {
-  analysis: AnalysisResult;
+  analysis: AnalysisResult | null;
+  onNavigateToAnalyze?: () => void;
 }
 
-export const TrendsView: React.FC<TrendsViewProps> = ({ analysis }) => {
+export const TrendsView: React.FC<TrendsViewProps> = ({ analysis, onNavigateToAnalyze }) => {
+  if (!analysis) {
+    return (
+      <EmptyAnalysisState
+        title="No Trend Intelligence Available"
+        description="Ingest live video content or analyze a topic to view narrative trajectory and trending topic acceleration."
+        onAction={onNavigateToAnalyze}
+      />
+    );
+  }
+
   const { trends } = analysis;
 
   return (
