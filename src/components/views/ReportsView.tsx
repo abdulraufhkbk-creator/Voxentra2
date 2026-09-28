@@ -4,8 +4,10 @@ import { RiskBadge } from '../common/RiskBadge';
 import { PlatformIcon, getPlatformName } from '../common/PlatformIcon';
 import { DataSourceIndicator } from '../common/DataSourceIndicator';
 import { CreatorInsightReport } from '../creator/CreatorInsightReport';
+import { ReportExportModal } from '../common/ReportExportModal';
 import { GranularExportModal } from '../common/GranularExportModal';
 import {
+  exportReport,
   downloadJsonObject,
   downloadFile,
   triggerPrint,
@@ -43,28 +45,39 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ analysis }) => {
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const handlePrint = () => {
-    const success = triggerPrint();
-    if (!success) {
-      // If print was blocked by sandbox, export offline HTML dossier automatically
-      handleDownloadHTML();
+  const handlePrint = async () => {
+    const result = await exportReport({
+      format: 'print',
+      analysis,
+      reportType,
+      targetElementSelector: '.report-page',
+    });
+    if (result.format === 'html-fallback') {
+      setDownloadSuccess('Offline Dossier Exported');
+      setTimeout(() => setDownloadSuccess(null), 2000);
     }
   };
 
-  const handleDownloadJSON = () => {
-    const success = downloadJsonObject(analysis, `voxentra-intelligence-${analysis.id}`);
-    if (success) {
+  const handleDownloadJSON = async () => {
+    const result = await exportReport({
+      format: 'json',
+      analysis,
+      reportType,
+    });
+    if (result.success) {
       setDownloadSuccess('JSON Exported');
       setTimeout(() => setDownloadSuccess(null), 2000);
     }
   };
 
-  const handleDownloadHTML = () => {
-    const reportElem = document.querySelector('.report-page');
-    const contentHtml = reportElem ? reportElem.innerHTML : `<h2>${analysis.title}</h2><p>${analysis.risk.overall_assessment}</p>`;
-    const fullHtml = generateStandaloneHtmlReport(`Executive Report - ${analysis.title}`, contentHtml);
-    const success = downloadFile(fullHtml, `voxentra-dossier-${analysis.id}.html`, 'text/html;charset=utf-8');
-    if (success) {
+  const handleDownloadHTML = async () => {
+    const result = await exportReport({
+      format: 'html',
+      analysis,
+      reportType,
+      targetElementSelector: '.report-page',
+    });
+    if (result.success) {
       setDownloadSuccess('Offline Dossier Exported');
       setTimeout(() => setDownloadSuccess(null), 2000);
     }
@@ -178,7 +191,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ analysis }) => {
         </div>
       </div>
 
-      <GranularExportModal
+      <ReportExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         analysis={analysis}
@@ -419,6 +432,38 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ analysis }) => {
             VOXENTRA INTELLIGENCE SUITE · SIH FINALIST AUDIT EDITION · {analysis.id.toUpperCase()}
           </p>
         </div>
+      </div>
+
+      {/* Floating Liquid-Glass Export Button */}
+      <div className="no-print fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsExportModalOpen(true)}
+          className="group relative flex items-center gap-3 pl-3.5 pr-4.5 py-2.5 rounded-full backdrop-blur-xl bg-[#FAF7F2]/85 hover:bg-white text-[#111111] border border-white/90 shadow-[0_12px_32px_0_rgba(17,17,17,0.14),0_2px_6px_0_rgba(17,17,17,0.06)] hover:shadow-[0_16px_40px_0_rgba(17,17,17,0.22)] ring-1 ring-[#D8CFC2]/70 hover:ring-[#111111]/40 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 cursor-pointer"
+          title="Open Granular Export Options (PDF, PNG, CSV, JSON, Markdown)"
+          aria-label="Export intelligence report"
+        >
+          {/* Liquid glass highlight reflection */}
+          <span className="absolute inset-0 rounded-full bg-gradient-to-b from-white/80 via-white/20 to-transparent pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity" />
+
+          <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#111111] text-[#F8F5EF] shadow-xs group-hover:scale-110 transition-transform">
+            <Download size={14} className="stroke-[2.5]" />
+          </div>
+
+          <div className="relative flex items-center gap-2">
+            <span className="text-xs font-black tracking-tight text-[#111111]">
+              Export
+            </span>
+            <span className="hidden sm:inline-flex items-center text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EBE4D8]/90 text-[#5E5A54] border border-[#D8CFC2]/60">
+              PDF · CSV · PNG
+            </span>
+          </div>
+
+          {/* Glowing pulse indicator */}
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#111111] opacity-30"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#111111]"></span>
+          </span>
+        </button>
       </div>
     </div>
   );

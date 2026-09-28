@@ -1,4 +1,4 @@
-name: Deploy Voxentra to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -7,11 +7,13 @@ on:
       - master
   workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Allow one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -35,16 +37,20 @@ jobs:
       - name: Configure GitHub Pages
         id: pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm ci || npm install
 
-      - name: Build Voxentra for GitHub Pages
+      - name: Build application
         run: npm run build
         env:
+          CI: "false"
           VITE_BASE_PATH: ${{ steps.pages.outputs.base_path || './' }}
 
-      - name: Upload Pages Artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'

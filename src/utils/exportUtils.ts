@@ -319,3 +319,159 @@ export function generateStandaloneHtmlReport(title: string, reportBodyHtml: stri
 </body>
 </html>`;
 }
+
+export type ReportExportFormat = 'print' | 'pdf' | 'json' | 'html' | 'csv' | 'markdown' | 'md' | 'blob';
+
+export interface ExportReportOptions {
+  format: ReportExportFormat | string;
+  analysis: AnalysisResult;
+  reportType?: 'executive' | 'creator';
+  filename?: string;
+  targetElementSelector?: string;
+  download?: boolean;
+}
+
+export interface ExportReportResult {
+  success: boolean;
+  format: string;
+  filename?: string;
+  blob?: Blob;
+  error?: string;
+}
+
+/**
+ * Universal export utility for the ReportsView component.
+ * Triggers browser printing or generates a mock/real file blob based on the selected format.
+ */
+export async function exportReport(options: ExportReportOptions): Promise<ExportReportResult> {
+  const {
+    format,
+    analysis,
+    reportType = 'executive',
+    filename: customFilename,
+    targetElementSelector = '.report-page',
+    download = true,
+  } = options;
+
+  const baseFilename = customFilename || `voxentra-${reportType}-report-${analysis.id}`;
+
+  try {
+    switch (format.toLowerCase()) {
+      case 'print':
+      case 'pdf': {
+        const printSuccess = triggerPrint();
+        if (printSuccess) {
+          return { success: true, format: 'print' };
+        }
+        // Fallback: If print is blocked (e.g. within restricted iframe), generate standalone HTML blob
+        const targetEl = document.querySelector(targetElementSelector);
+        const innerHtml = targetEl ? targetEl.innerHTML : `<h1>${analysis.title}</h1><p>${analysis.risk.overall_assessment}</p>`;
+        const fullHtml = generateStandaloneHtmlReport(`Intelligence Report - ${analysis.title}`, innerHtml);
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const filename = `${baseFilename}.html`;
+        if (download) {
+          downloadFile(fullHtml, filename, 'text/html;charset=utf-8');
+        }
+        return { success: true, format: 'html-fallback', filename, blob };
+      }
+
+      case 'json': {
+        const jsonContent = JSON.stringify(analysis, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
+        const filename = `${baseFilename}.json`;
+        if (download) {
+          downloadFile(jsonContent, filename, 'application/json;charset=utf-8');
+        }
+        return { success: true, format: 'json', filename, blob };
+      }
+
+      case 'html': {
+        const targetEl = document.querySelector(targetElementSelector);
+        const innerHtml = targetEl ? targetEl.innerHTML : `<h1>${analysis.title}</h1><p>${analysis.risk.overall_assessment}</p>`;
+        const fullHtml = generateStandaloneHtmlReport(`Voxentra Report - ${analysis.title}`, innerHtml);
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const filename = `${baseFilename}.html`;
+        if (download) {
+          downloadFile(fullHtml, filename, 'text/html;charset=utf-8');
+        }
+        return { success: true, format: 'html', filename, blob };
+      }
+
+      case 'csv': {
+        const csvContent = generateFullReportCsv(analysis);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+        const filename = `${baseFilename}.csv`;
+        if (download) {
+          downloadFile(csvContent, filename, 'text/csv;charset=utf-8');
+        }
+        return { success: true, format: 'csv', filename, blob };
+      }
+
+      case 'markdown':
+      case 'md': {
+        const markdownContent = `# VOXENTRA INTELLIGENCE DOSSIER: ${analysis.title}
+*ID: ${analysis.id.toUpperCase()} | Engine: ${analysis.ai_engine} | Date: ${new Date(analysis.timestamp).toUTCString()}*
+
+## 1. Executive Summary & Core Assessment
+${analysis.risk.overall_assessment}
+
+- **Platform**: ${analysis.target_platform.toUpperCase()}
+- **Risk Level**: ${analysis.risk.risk_level}
+- **Confidence Rating**: ${analysis.risk.confidence}
+- **Data Source**: ${analysis.data_source_type}
+
+## 2. Core Strategic Intelligence Answers
+- **What is happening**: ${analysis.answers.what_is_happening}
+- **Who is driving it**: ${analysis.answers.who_is_driving_it}
+- **How is it spreading**: ${analysis.answers.how_is_it_spreading}
+- **What are people feeling**: ${analysis.answers.what_are_people_feeling}
+- **Main Narratives**: ${analysis.answers.what_are_the_main_narratives}
+
+## 3. Forensic & Risk Signals
+${analysis.risk.signals.map(s => `### [${s.severity.toUpperCase()}] ${s.title}
+${s.description}
+*Technical Details: ${s.technical_details}*
+`).join('\n')}
+
+## 4. Audience & Demographic Segments
+${analysis.audience.segments.map(s => `- **${s.name}** (${s.share_percentage}%): Stance: ${s.dominant_stance} | Key Drivers: ${s.key_drivers}`).join('\n')}
+`;
+        const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+        const filename = `${baseFilename}.md`;
+        if (download) {
+          downloadFile(markdownContent, filename, 'text/markdown;charset=utf-8');
+        }
+        return { success: true, format: 'markdown', filename, blob };
+      }
+
+      case 'blob':
+      default: {
+        // Generic mock / binary payload blob representation
+        const payload = {
+          metadata: {
+            title: analysis.title,
+            id: analysis.id,
+            exportedAt: new Date().toISOString(),
+            engine: analysis.ai_engine,
+            format,
+          },
+          data: analysis,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/octet-stream' });
+        const filename = `${baseFilename}.bin`;
+        if (download) {
+          downloadFile(JSON.stringify(payload, null, 2), filename, 'application/octet-stream');
+        }
+        return { success: true, format: 'blob', filename, blob };
+      }
+    }
+  } catch (err: any) {
+    console.error(`exportReport error for format "${format}":`, err);
+    return {
+      success: false,
+      format,
+      error: err?.message || 'Unknown export error occurred',
+    };
+  }
+}
+

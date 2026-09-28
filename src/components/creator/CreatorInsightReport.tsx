@@ -6,7 +6,7 @@ import {
   formatCreatorReportToMarkdown,
 } from '../../utils/creatorIntelligence';
 import { PlatformIcon, getPlatformName } from '../common/PlatformIcon';
-import { GranularExportModal } from '../common/GranularExportModal';
+import { ReportExportModal } from '../common/ReportExportModal';
 import {
   downloadFile,
   downloadJsonObject,
@@ -188,7 +188,7 @@ export const CreatorInsightReport: React.FC<CreatorInsightReportProps> = ({
         </div>
       </div>
 
-      <GranularExportModal
+      <ReportExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         analysis={analysis}
@@ -594,6 +594,38 @@ export const CreatorInsightReport: React.FC<CreatorInsightReportProps> = ({
             VOXENTRA INTELLIGENCE SUITE · SIH FINALIST EDITION · {report.report_id}
           </p>
         </div>
+      </div>
+
+      {/* Floating Liquid-Glass Export Action Button */}
+      <div className="no-print fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsExportModalOpen(true)}
+          className="group relative flex items-center gap-3 pl-3.5 pr-4.5 py-2.5 rounded-full backdrop-blur-xl bg-[#FAF7F2]/85 hover:bg-white text-[#111111] border border-white/90 shadow-[0_12px_32px_0_rgba(17,17,17,0.14),0_2px_6px_0_rgba(17,17,17,0.06)] hover:shadow-[0_16px_40px_0_rgba(17,17,17,0.22)] ring-1 ring-[#D8CFC2]/70 hover:ring-[#111111]/40 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 cursor-pointer"
+          title="Open Granular Export Options (PDF, PNG, CSV, JSON, Markdown)"
+          aria-label="Export creator report"
+        >
+          {/* Liquid glass highlight reflection */}
+          <span className="absolute inset-0 rounded-full bg-gradient-to-b from-white/80 via-white/20 to-transparent pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity" />
+
+          <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#111111] text-[#F8F5EF] shadow-xs group-hover:scale-110 transition-transform">
+            <Download size={14} className="stroke-[2.5]" />
+          </div>
+
+          <div className="relative flex items-center gap-2">
+            <span className="text-xs font-black tracking-tight text-[#111111]">
+              Export
+            </span>
+            <span className="hidden sm:inline-flex items-center text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EBE4D8]/90 text-[#5E5A54] border border-[#D8CFC2]/60">
+              PDF · CSV · PNG
+            </span>
+          </div>
+
+          {/* Glowing pulse indicator */}
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#111111] opacity-30"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#111111]"></span>
+          </span>
+        </button>
       </div>
     </div>
   );
