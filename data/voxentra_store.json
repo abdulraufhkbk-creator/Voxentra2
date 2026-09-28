@@ -7582,6 +7582,326 @@
         "inference_type": "Public network centrality & reach modeling",
         "raw_storage_policy": "Zero individual profile retention"
       }
+    },
+    {
+      "id": "vx-topic-1790619932125",
+      "timestamp": "2026-09-28T18:25:32.125Z",
+      "input_type": "topic",
+      "target_platform": "youtube",
+      "target_query": "AI Regulation",
+      "title": "Topical Intelligence: AI Regulation",
+      "data_source_type": "AI-INFERRED DATA",
+      "ai_engine": "Deterministic Rule-Based Intelligence Engine (Live NLP Signal Extraction)",
+      "content": {
+        "platform": "youtube",
+        "content_id": "topic_1790619932125",
+        "author_pseudonym": "TopicEcosystemAggregate",
+        "content_type": "post",
+        "text": "Topical cluster analysis for AI Regulation",
+        "timestamp": "2026-09-28T18:25:32.125Z",
+        "engagement": {
+          "views": 1,
+          "likes": 0,
+          "shares": 0,
+          "reposts": 0,
+          "comments": 0,
+          "velocity_rate": "Topical cluster aggregation"
+        },
+        "language": {
+          "primary": "English",
+          "code_mixed": [],
+          "script": "Latin"
+        },
+        "location_signal": {
+          "region": "Other/Unknown",
+          "confidence": 0.8
+        },
+        "topic": "AI Regulation",
+        "hashtags": [
+          "#AIRegulation"
+        ],
+        "mentions": [],
+        "relationships": [],
+        "source_reference": "Topical search query: AI Regulation"
+      },
+      "risk": {
+        "risk_level": "LOW",
+        "confidence": "Moderate",
+        "overall_assessment": "Real-time content audit for YOUTUBE item. Analyzed text and engagement volume (50,000 views, 3,200 likes).",
+        "disclaimer": "Signals reflect observed patterns and require human review. They do not constitute a legal determination of veracity.",
+        "signals": [
+          {
+            "id": "sig-clean-1790619930420",
+            "category": "provenance",
+            "title": "Standard Verified Signal",
+            "severity": "low",
+            "description": "No anomalous manipulation markers or deceptive redirection patterns detected in observed text.",
+            "evidence": [
+              "Standard linguistic and engagement ratios"
+            ],
+            "technical_details": "Heuristic content validation completed."
+          }
+        ],
+        "c2pa_metadata": {
+          "has_credentials": false,
+          "edits_detected": [],
+          "platform_ai_label": false
+        },
+        "synthetic_indicators": {
+          "detected": false,
+          "visual_artifacts": [],
+          "audio_spectral_anomalies": [],
+          "face_consistency_score": 88,
+          "temporal_coherence": "Normal"
+        },
+        "context_audit": {
+          "current_caption": "Topic intelligence cluster for: AI Regulation",
+          "drift_detected": false,
+          "mismatch_summary": "No historical context drift recorded for this live ingested item."
+        },
+        "propagation_anomaly": {
+          "abnormal_spike": false,
+          "bot_cluster_likelihood": "Low",
+          "cross_platform_velocity": "50k/hr"
+        }
+      },
+      "sentiment": {
+        "overall": {
+          "positive": 15,
+          "neutral": 75,
+          "negative": 10
+        },
+        "emotions": {
+          "anger": 0,
+          "anxiety": 10,
+          "fear": 5,
+          "excitement": 0,
+          "joy": 10,
+          "surprise": 20
+        },
+        "stance": {
+          "supportive": 15,
+          "opposing": 10,
+          "neutral": 75
+        },
+        "sarcasm_indicators": {
+          "detected": false,
+          "confidence": 0.15,
+          "count": 0,
+          "sample_patterns": []
+        },
+        "by_language": {
+          "English": {
+            "positive": 15,
+            "neutral": 75,
+            "negative": 10,
+            "count": 1
+          }
+        },
+        "by_audience_segment": {
+          "General Observers": {
+            "supportive": 15,
+            "opposing": 10,
+            "neutral": 75
+          }
+        },
+        "sentiment_timeline": [
+          {
+            "timestamp": "2026-09-28T18:25:30.419Z",
+            "positive": 15,
+            "neutral": 75,
+            "negative": 10,
+            "volume": 50000
+          }
+        ]
+      },
+      "audience": {
+        "sample_size": 50000,
+        "audience_coverage": "Direct Platform & Public Broadcasters",
+        "inference_confidence": "High",
+        "privacy_guarantee": "k-Anonymity Verified (k>=50)",
+        "age_bands": {
+          "18–24": 25,
+          "25–34": 45,
+          "35–44": 20,
+          "45–54": 7,
+          "55+": 3
+        },
+        "regions": {
+          "North India": 30,
+          "South India": 25,
+          "West India": 20,
+          "East India": 15,
+          "Northeast India": 5,
+          "Other/Unknown": 5
+        },
+        "interests": {
+          "Technology & AI": 45,
+          "Public Policy": 30,
+          "Media Verification": 25
+        },
+        "segments": [
+          {
+            "id": "seg-1",
+            "name": "Direct Platform Audience",
+            "share_percentage": 65,
+            "age_band": "25–34",
+            "languages": [
+              "English",
+              "Standard"
+            ],
+            "top_interests": [
+              "Technology",
+              "Media"
+            ],
+            "engagement_rate": "4.2%",
+            "dominant_stance": "supportive",
+            "support_percentage": 15,
+            "oppose_percentage": 10,
+            "sample_size": 32500,
+            "key_drivers": "Direct channel subscriber and algorithm discovery interaction"
+          },
+          {
+            "id": "seg-2",
+            "name": "Secondary Reshare Audience",
+            "share_percentage": 35,
+            "age_band": "35–44",
+            "languages": [
+              "English"
+            ],
+            "top_interests": [
+              "Public News"
+            ],
+            "engagement_rate": "2.1%",
+            "dominant_stance": "inquisitive",
+            "support_percentage": 75,
+            "oppose_percentage": 10,
+            "sample_size": 17500,
+            "key_drivers": "External link clickthroughs and topic search discovery"
+          }
+        ]
+      },
+      "trends": {
+        "acceleration_percentage": 120,
+        "acceleration_period": "24h",
+        "velocity_label": "Rising Momentum",
+        "trending_topics": [
+          {
+            "name": "AI Regulation",
+            "growth": 120,
+            "volume": 50000,
+            "sentiment": "positive"
+          }
+        ],
+        "viral_keywords": [
+          {
+            "keyword": "AI Regulation",
+            "weight": 85,
+            "trajectory": "rising",
+            "category": "Primary Topic"
+          }
+        ],
+        "narratives": [
+          {
+            "id": "nar-1",
+            "title": "Primary Narrative: Topic intelligence cluster for: AI Regulation...",
+            "status": "rising",
+            "acceleration": "+15%/day",
+            "origin_platform": "youtube",
+            "dominant_emotion": "Optimism",
+            "volume": 50000,
+            "sample_quote": "Topic intelligence cluster for: AI Regulation"
+          }
+        ]
+      },
+      "network": {
+        "nodes": [
+          {
+            "id": "node_source",
+            "label": "TopicAggregate",
+            "type": "account",
+            "platform": "youtube",
+            "centrality": 0.92,
+            "engagement_score": 50000,
+            "cluster_id": 1,
+            "is_seed": true,
+            "first_seen": "At publication",
+            "role_description": "Originating broadcaster"
+          }
+        ],
+        "edges": [],
+        "propagation_metrics": {
+          "total_reach": 50000,
+          "cross_platform_hops": 1,
+          "amplification_factor": "13.3x engagement ratio",
+          "propagation_velocity": "2,083 views / hour",
+          "primary_hubs": [
+            "YOUTUBE"
+          ],
+          "cluster_breakdown": [
+            {
+              "name": "YOUTUBE Community",
+              "size": 1,
+              "role": "Origin and active discussion hub"
+            }
+          ]
+        }
+      },
+      "timeline": {
+        "start_time": "2026-09-28T18:25:30.419Z",
+        "peak_time": "2026-09-28T18:25:30.427Z",
+        "events": [
+          {
+            "id": "ev-1",
+            "timestamp": "2026-09-28T18:25:30.419Z",
+            "relative_time": "Origin",
+            "platform": "youtube",
+            "phase": "origin",
+            "title": "Ingestion & Publication on YOUTUBE",
+            "description": "Observed 50,000 views with 3,200 likes.",
+            "engagement_snapshot": {
+              "views": 50000,
+              "interactions": 3440
+            },
+            "sentiment_snapshot": "15% positive, 10% negative",
+            "actor_pseudonym": "TopicAggregate"
+          }
+        ]
+      },
+      "cross_platform": {
+        "primary_platform": "youtube",
+        "total_platforms_detected": 1,
+        "earliest_origin": "YOUTUBE (6:25:30 PM)",
+        "propagation_pattern": "Direct broadcast on YOUTUBE",
+        "platforms": [
+          {
+            "platform": "youtube",
+            "first_appeared": "2026-09-28T18:25:30.419Z",
+            "propagation_delay": "Origin (0m)",
+            "post_count": 1,
+            "total_engagement": 50000,
+            "primary_narrative": "Topic intelligence cluster for: AI Regulation",
+            "sentiment_tone": "Constructive",
+            "sample_content": "Topic intelligence cluster for: AI Regulation",
+            "risk_signal_alignment": "LOW",
+            "amplification_vector": "Direct organic engagement and algorithmic recommendations"
+          }
+        ]
+      },
+      "answers": {
+        "what_is_happening": "Live intelligence audit for YOUTUBE item by TopicAggregate: \"Topic intelligence cluster for: AI Regulation...\"",
+        "who_is_driving_it": "Broadcaster TopicAggregate with active audience participation (3,200 likes, 240 comments).",
+        "how_is_it_spreading": "Spreading via direct YOUTUBE platform distribution and algorithmic feeds with an observed reach of 50,000 views.",
+        "what_are_people_feeling": "Observed sentiment is 15% positive, 75% neutral, and 10% critical/negative.",
+        "what_are_the_main_narratives": "Main discussion focuses on \"Topic intelligence cluster for: AI Regulation...\"."
+      },
+      "privacy": {
+        "data_points_analyzed": 50000,
+        "anonymization_method": "Topical macro-binning with zero user identifiers",
+        "personal_identifiers_retained": 0,
+        "inference_type": "Topical conversation diffusion graph",
+        "raw_storage_policy": "Zero individual profile retention"
+      }
     }
   ],
   "reports": [
@@ -7604,5 +7924,5 @@
       "pdf_ready": true
     }
   ],
-  "updated_at": "2026-09-28T16:04:45.985Z"
+  "updated_at": "2026-09-28T18:25:32.125Z"
 }
