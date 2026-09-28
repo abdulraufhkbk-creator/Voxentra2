@@ -1,0 +1,6 @@
+{
+  "name": "VOXENTRA - Social Intelligence Analyzer",
+  "description": "Privacy-first AI-powered social intelligence analyzer. Understand what is happening online, who is driving it, how it spreads, and what signals deserve attention.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
